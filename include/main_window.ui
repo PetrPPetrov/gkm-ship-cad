@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>500</width>
+    <height>400</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Gkm Ship CAD</string>
+  </property>
+  <widget class="QMdiArea" name="centralwidget"/>
+  <widget class="QMenuBar" name="menubar"/>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>View3DWidget</class>
+   <extends>QOpenGLWidget</extends>
+   <header>view_3d_widget.h</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
+ <connections/>
+</ui>
