@@ -33,7 +33,6 @@ private:
 
 private:
     std::unique_ptr<QOpenGLShaderProgram> program;
-    std::unique_ptr<QOpenGLTexture> texture;
     QOpenGLBuffer vbo;
 
     QVector3D viewer_pos;

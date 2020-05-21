@@ -21,6 +21,18 @@ MainWindow::MainWindow()
     g_main_window = this;
     main_window.setupUi(this);
 
+    auto cube = std::make_shared<Gkm::Solid::Cube>();
+    auto sphere = std::make_shared<Gkm::Solid::Sphere>();
+    auto translate = std::make_shared<Gkm::Solid::TransformOperator>();
+    translate->translate = Eigen::Vector3d(1.0, 1.0, 1.0);
+    translate->solid = sphere;
+    auto difference = std::make_shared<Gkm::Solid::DifferenceOperator>();
+    difference->left = cube;
+    difference->right = translate;
+
+    solid = difference;
+    std::srand(static_cast<unsigned int>(time(0)));
+
     view_3d_widget = new View3DWidget(main_window.centralwidget);
     view_3d_window = main_window.centralwidget->addSubWindow(view_3d_widget);
     view_3d_window->setWindowTitle(tr("3D View"));
@@ -31,6 +43,11 @@ MainWindow::MainWindow()
     log_view->setCenterOnScroll(true);
     log_window = main_window.centralwidget->addSubWindow(log_view);
     log_window->setWindowTitle(tr("Log"));
+}
+
+Gkm::Solid::ISolid::Ptr MainWindow::getSolid() const
+{
+    return solid;
 }
 
 void MainWindow::showEvent(QShowEvent* event)

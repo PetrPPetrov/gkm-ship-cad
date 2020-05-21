@@ -17,6 +17,7 @@
 #include <QListWidget>
 #include "ui_main_window.h"
 #include "view_3d_widget.h"
+#include "gkm_solid/gkm_solid.h"
 
 class MainWindow : public QMainWindow
 {
@@ -24,6 +25,7 @@ class MainWindow : public QMainWindow
 
 public:
     MainWindow();
+    Gkm::Solid::ISolid::Ptr getSolid() const;
 
 protected:
     void showEvent(QShowEvent* event) override;
@@ -36,6 +38,7 @@ private:
     QMdiSubWindow* view_3d_window = nullptr;
     QPlainTextEdit* log_view = nullptr;
     QMdiSubWindow* log_window = nullptr;
+    Gkm::Solid::ISolid::Ptr solid = nullptr;
 };
 
 extern MainWindow* g_main_window;
