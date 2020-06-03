@@ -36,29 +36,11 @@ void View3DWidget::initializeGL()
     glDisable(GL_CULL_FACE);
 
     Gkm::Solid::ISolid::Ptr solid = g_main_window->getSolid();
-    Eigen::AlignedBox3d bbox = solid->bbox();
-    QVector<GLfloat> vert_data;
-    vert_data.reserve(VERTEX_COUNT);
-    size_t attempt_count = 0;
-    while (vert_data.size() < VERTEX_COUNT && attempt_count < VERTEX_COUNT * 10)
-    {
-        ++attempt_count;
-        Eigen::Vector3d rnd = Eigen::Vector3d::Random();
-        Eigen::Vector3d point;
-        point.x() = (rnd.x() + 1.0) * bbox.sizes().x() / 2.0 + bbox.min().x();
-        point.y() = (rnd.y() + 1.0) * bbox.sizes().y() / 2.0 + bbox.min().y();
-        point.z() = (rnd.z() + 1.0) * bbox.sizes().z() / 2.0 + bbox.min().z();
-        if (solid->inside(point))
-        {
-            vert_data.append(point.x());
-            vert_data.append(point.y());
-            vert_data.append(point.z());
-        }
-    }
+    model = buildModel(solid);
 
     vbo.create();
     vbo.bind();
-    vbo.allocate(vert_data.constData(), vert_data.count() * sizeof(GLfloat));
+    vbo.allocate(&model->points[0], model->points.size() * sizeof(Eigen::Vector3f));
 
     QOpenGLShader* vshader = new QOpenGLShader(QOpenGLShader::Vertex, this);
     const char* vsrc =
@@ -102,7 +84,7 @@ void View3DWidget::paintGL()
     program->enableAttributeArray(PROGRAM_VERTEX_ATTRIBUTE);
     program->setAttributeBuffer(PROGRAM_VERTEX_ATTRIBUTE, GL_FLOAT, 0, 3, 3 * sizeof(GLfloat));
 
-    glDrawArrays(GL_POINTS, 0, VERTEX_COUNT);
+    glDrawArrays(GL_TRIANGLES, 0, model->points.size() / 3);
 }
 
 void View3DWidget::mouseMoveEvent(QMouseEvent* event)

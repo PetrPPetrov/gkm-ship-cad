@@ -12,6 +12,7 @@
 #include <QOpenGLTexture>
 #include <QOpenGLBuffer>
 #include <QVector3D>
+#include "gkm_solid/gkm_visualizer.h"
 
 class View3DWidget : public QOpenGLWidget, protected QOpenGLFunctions
 {
@@ -32,6 +33,8 @@ private:
     void setDefaultCamera();
 
 private:
+    Gkm::Solid::Model::Ptr model = nullptr;
+
     std::unique_ptr<QOpenGLShaderProgram> program;
     QOpenGLBuffer vbo;
 

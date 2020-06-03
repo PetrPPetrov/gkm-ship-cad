@@ -27,6 +27,7 @@ namespace
 
         Eigen::Vector3d point;
         bool hollow = false;
+        int point_index = 0;
 
         bool isCube() const;
         void addNextX(Point* point);
@@ -35,6 +36,10 @@ namespace
         void addPrevY(Point* point);
         void addNextZ(Point* point);
         void addPrevZ(Point* point);
+        void checkEdgeX(const Point* start_x, const Point* end_x) const;
+        void checkEdgeY(const Point* start_y, const Point* end_y) const;
+        void checkEdgeZ(const Point* start_z, const Point* end_z) const;
+        void check() const;
     };
 
     bool Point::isCube() const
@@ -47,7 +52,6 @@ namespace
         Point* next_x = next_point_x;
         next_point_x = point;
         point->prev_point_x = this;
-        point->next_point_x = nullptr;
         if (next_x)
         {
             next_x->prev_point_x = point;
@@ -60,7 +64,6 @@ namespace
         Point* prev_x = prev_point_x;
         prev_point_x = point;
         point->next_point_x = this;
-        point->prev_point_x = nullptr;
         if (prev_x)
         {
             prev_x->next_point_x = point;
@@ -73,7 +76,6 @@ namespace
         Point* next_y = next_point_y;
         next_point_y = point;
         point->prev_point_y = this;
-        point->next_point_y = nullptr;
         if (next_y)
         {
             next_y->prev_point_y = point;
@@ -86,7 +88,6 @@ namespace
         Point* prev_y = prev_point_y;
         prev_point_y = point;
         point->next_point_y = this;
-        point->prev_point_y = nullptr;
         if (prev_y)
         {
             prev_y->next_point_y = point;
@@ -99,7 +100,6 @@ namespace
         Point* next_z = next_point_z;
         next_point_z = point;
         point->prev_point_z = this;
-        point->next_point_z = nullptr;
         if (next_z)
         {
             next_z->prev_point_z = point;
@@ -112,12 +112,61 @@ namespace
         Point* prev_z = prev_point_z;
         prev_point_z = point;
         point->next_point_z = this;
-        point->prev_point_z = nullptr;
         if (prev_z)
         {
             prev_z->next_point_z = point;
             point->prev_point_z = prev_z;
         }
+    }
+
+    void Point::checkEdgeX(const Point* start_x, const Point* end_x) const
+    {
+        const Point* cur_point = start_x;
+        while (cur_point != end_x)
+        {
+            assert(cur_point);
+            cur_point = cur_point->next_point_x;
+        }
+    }
+
+    void Point::checkEdgeY(const Point* start_y, const Point* end_y) const
+    {
+        const Point* cur_point = start_y;
+        while (cur_point != end_y)
+        {
+            assert(cur_point);
+            cur_point = cur_point->next_point_y;
+        }
+    }
+
+    void Point::checkEdgeZ(const Point* start_z, const Point* end_z) const
+    {
+        const Point* cur_point = start_z;
+        while (cur_point != end_z)
+        {
+            assert(cur_point);
+            cur_point = cur_point->next_point_z;
+        }
+    }
+
+    void Point::check() const
+    {
+        if (!isCube()) return;
+
+        checkEdgeX(this, end_cube_x);
+        checkEdgeX(end_cube_y, end_cube_xy);
+        checkEdgeX(end_cube_z, end_cube_xz);
+        checkEdgeX(end_cube_yz, end_cube_xyz);
+
+        checkEdgeY(this, end_cube_y);
+        checkEdgeY(end_cube_x, end_cube_xy);
+        checkEdgeY(end_cube_z, end_cube_yz);
+        checkEdgeY(end_cube_xz, end_cube_xyz);
+
+        checkEdgeZ(this, end_cube_z);
+        checkEdgeZ(end_cube_x, end_cube_xz);
+        checkEdgeZ(end_cube_y, end_cube_yz);
+        checkEdgeZ(end_cube_xy, end_cube_xyz);
     }
 
     struct Cubes
@@ -152,7 +201,7 @@ namespace
 
     class ModelBuilder
     {
-        double TOLERANCE = 0.01;
+        double TOLERANCE = 0.1;
         Gkm::Solid::ISolid::Ptr solid;
         Cubes cubes;
 
@@ -162,6 +211,7 @@ namespace
         bool split(Point* cube);
         bool checkAndSplitCube(Point* cube);
         void checkAndSplitCubes();
+        Gkm::Solid::Model::Ptr buildModel();
 
     public:
         ModelBuilder(const Gkm::Solid::ISolid::Ptr& solid);
@@ -185,16 +235,53 @@ namespace
             cur_point = cur_point->next_point_x;
         }
         Point* new_point = cubes.AllocatePoint();
+        new_point->point = mid;
+        start_x->addNextX(new_point);
+        return new_point;
     }
 
     Point* ModelBuilder::addPointY(Point* start_y, Point* end_y)
     {
-
+        const Eigen::Vector3d min = start_y->point;
+        const Eigen::Vector3d max = end_y->point;
+        const Eigen::Vector3d sizes = max - min;
+        Eigen::Vector3d mid = min;
+        mid.y() += sizes.y() / 2;
+        Point* cur_point = start_y;
+        while (cur_point != end_y)
+        {
+            if (cur_point->point.y() == mid.y())
+            {
+                return cur_point;
+            }
+            cur_point = cur_point->next_point_y;
+        }
+        Point* new_point = cubes.AllocatePoint();
+        new_point->point = mid;
+        start_y->addNextY(new_point);
+        return new_point;
     }
 
     Point* ModelBuilder::addPointZ(Point* start_z, Point* end_z)
     {
-
+        const Eigen::Vector3d min = start_z->point;
+        const Eigen::Vector3d max = end_z->point;
+        const Eigen::Vector3d sizes = max - min;
+        Eigen::Vector3d mid = min;
+        mid.z() += sizes.z() / 2;
+        Point* cur_point = start_z;
+        while (cur_point != end_z)
+        {
+            if (cur_point->point.z() == mid.z())
+            {
+                return cur_point;
+            }
+            cur_point = cur_point->next_point_z;
+        }
+        Point* new_point = cubes.AllocatePoint();
+        new_point->point = mid;
+        start_z->addNextZ(new_point);
+        return new_point;
     }
 
     bool ModelBuilder::split(Point* cube)
@@ -208,8 +295,87 @@ namespace
             return true;
         }
 
-        const Eigen::Vector3d mid = min + sizes / 2;
-        //const Eigen::Vector3d 
+        Point* p[3][3][3] = { nullptr };
+        p[0][0][0] = cube;
+        p[2][0][0] = cube->end_cube_x;
+        p[0][2][0] = cube->end_cube_y;
+        p[2][2][0] = cube->end_cube_xy;
+        p[0][0][2] = cube->end_cube_z;
+        p[2][0][2] = cube->end_cube_xz;
+        p[0][2][2] = cube->end_cube_yz;
+        p[2][2][2] = cube->end_cube_xyz;
+
+        // Bottom
+        p[1][0][0] = addPointX(cube, cube->end_cube_x);
+        p[0][1][0] = addPointY(cube, cube->end_cube_y);
+        p[2][1][0] = addPointY(cube->end_cube_x, cube->end_cube_xy);
+        p[1][2][0] = addPointX(cube->end_cube_y, cube->end_cube_xy);
+        if (!p[0][1][0]->next_point_x) p[0][1][0]->addNextX(p[2][1][0]);
+        p[1][1][0] = addPointX(p[0][1][0], p[2][1][0]);
+        if (!p[1][0][0]->next_point_y) p[1][0][0]->addNextY(p[1][1][0]);
+        if (!p[1][1][0]->next_point_y) p[1][1][0]->addNextY(p[1][2][0]);
+
+        // Top
+        p[1][0][2] = addPointX(cube->end_cube_z, cube->end_cube_xz);
+        p[0][1][2] = addPointY(cube->end_cube_z, cube->end_cube_yz);
+        p[2][1][2] = addPointY(cube->end_cube_xz, cube->end_cube_xyz);
+        p[1][2][2] = addPointX(cube->end_cube_yz, cube->end_cube_xyz);
+        if (!p[0][1][2]->next_point_x) p[0][1][2]->addNextX(p[2][1][2]);
+        p[1][1][2] = addPointX(p[0][1][2], p[2][1][2]);
+        if (!p[1][0][2]->next_point_y) p[1][0][2]->addNextY(p[1][1][2]);
+        if (!p[1][1][2]->next_point_y) p[1][1][2]->addNextY(p[1][2][2]);
+
+        // Vertical links
+        p[0][0][1] = addPointZ(cube, cube->end_cube_z);
+        p[2][0][1] = addPointZ(cube->end_cube_x, cube->end_cube_xz);
+        p[0][2][1] = addPointZ(cube->end_cube_y, cube->end_cube_yz);
+        p[2][2][1] = addPointZ(cube->end_cube_xy, cube->end_cube_xyz);
+        if (!p[1][0][0]->next_point_z) p[1][0][0]->addNextZ(p[1][0][2]);
+        if (!p[0][1][0]->next_point_z) p[0][1][0]->addNextZ(p[0][1][2]);
+        if (!p[1][1][0]->next_point_z) p[1][1][0]->addNextZ(p[1][1][2]);
+        if (!p[2][1][0]->next_point_z) p[2][1][0]->addNextZ(p[2][1][2]);
+        if (!p[1][2][0]->next_point_z) p[1][2][0]->addNextZ(p[1][2][2]);
+        p[1][0][1] = addPointZ(p[1][0][0], p[1][0][2]);
+        p[0][1][1] = addPointZ(p[0][1][0], p[0][1][2]);
+        p[1][1][1] = addPointZ(p[1][1][0], p[1][1][2]);
+        p[2][1][1] = addPointZ(p[2][1][0], p[2][1][2]);
+        p[1][2][1] = addPointZ(p[1][2][0], p[1][2][2]);
+
+        // Horizontal links for z1 level
+        if (!p[0][0][1]->next_point_x) p[0][0][1]->addNextX(p[1][0][1]);
+        if (!p[1][0][1]->next_point_x) p[1][0][1]->addNextX(p[2][0][1]);
+        if (!p[0][1][1]->next_point_x) p[0][1][1]->addNextX(p[1][1][1]);
+        if (!p[1][1][1]->next_point_x) p[1][1][1]->addNextX(p[2][1][1]);
+        if (!p[0][2][1]->next_point_x) p[0][2][1]->addNextX(p[1][2][1]);
+        if (!p[1][2][1]->next_point_x) p[1][2][1]->addNextX(p[2][2][1]);
+
+        if (!p[0][0][1]->next_point_y) p[0][0][1]->addNextY(p[0][1][1]);
+        if (!p[0][1][1]->next_point_y) p[0][1][1]->addNextY(p[0][2][1]);
+        if (!p[1][0][1]->next_point_y) p[1][0][1]->addNextY(p[1][1][1]);
+        if (!p[1][1][1]->next_point_y) p[1][1][1]->addNextY(p[1][2][1]);
+        if (!p[2][0][1]->next_point_y) p[2][0][1]->addNextY(p[2][1][1]);
+        if (!p[2][1][1]->next_point_y) p[2][1][1]->addNextY(p[2][2][1]);
+
+        // Adjust cube end points
+        for (unsigned ix = 0; ix < 2; ++ix)
+        {
+            for (unsigned iy = 0; iy < 2; ++iy)
+            {
+                for (unsigned iz = 0; iz < 2; ++iz)
+                {
+                    p[ix][iy][iz]->end_cube_x = p[ix + 1][iy][iz];
+                    p[ix][iy][iz]->end_cube_y = p[ix][iy + 1][iz];
+                    p[ix][iy][iz]->end_cube_z = p[ix][iy][iz + 1];
+                    p[ix][iy][iz]->end_cube_xy = p[ix + 1][iy + 1][iz];
+                    p[ix][iy][iz]->end_cube_xz = p[ix + 1][iy][iz + 1];
+                    p[ix][iy][iz]->end_cube_yz = p[ix][iy + 1][iz + 1];
+                    p[ix][iy][iz]->end_cube_xyz = p[ix + 1][iy + 1][iz + 1];
+                    p[ix][iy][iz]->check();
+                }
+            }
+        }
+
+        return false;
     }
 
     bool ModelBuilder::checkAndSplitCube(Point* cube)
@@ -256,6 +422,7 @@ namespace
         }
         if (all_outside)
         {
+            // Cube is hollow, pass it
             cube->hollow = true;
             return true;
         }
@@ -267,18 +434,155 @@ namespace
         for (auto point_list_it = cubes.points.begin(); point_list_it != cubes.points.end(); ++point_list_it)
         {
             auto& point_list = *point_list_it;
-            for (auto point_it = point_list.begin(); point_it != point_list.end();)
+            for (size_t point_index = 0; point_index < point_list.size();)
             {
-                auto& point = *point_it;
+                auto& point = point_list[point_index];
                 if (point.isCube())
                 {
+                    point.check();
                     if (checkAndSplitCube(&point))
                     {
-                        ++point_it;
+                        ++point_index;
+                    }
+                }
+                else
+                {
+                    ++point_index;
+                }
+            }
+        }
+    }
+
+    static inline Eigen::Vector3f toFloat(const Eigen::Vector3d& vector)
+    {
+        return Eigen::Vector3f(
+            static_cast<float>(vector.x()),
+            static_cast<float>(vector.y()),
+            static_cast<float>(vector.z())
+        );
+    }
+
+    Gkm::Solid::Model::Ptr ModelBuilder::buildModel()
+    {
+        Gkm::Solid::Model::Ptr result = std::make_shared<Gkm::Solid::Model>();
+
+        size_t vertex_count = 0;
+        for (auto point_list_it = cubes.points.begin(); point_list_it != cubes.points.end(); ++point_list_it)
+        {
+            auto& point_list = *point_list_it;
+            for (auto point_it = point_list.begin(); point_it != point_list.end(); ++point_it)
+            {
+                auto& point = *point_it;
+                if (point.isCube() && !point.hollow)
+                {
+                    bool prev_x_hollow = true;
+                    if (point.prev_point_x) prev_x_hollow = point.prev_point_x->hollow;
+                    bool next_x_hollow = true;
+                    if (point.next_point_x) next_x_hollow = point.next_point_x->hollow;
+                    bool prev_y_hollow = true;
+                    if (point.prev_point_y) prev_y_hollow = point.prev_point_y->hollow;
+                    bool next_y_hollow = true;
+                    if (point.next_point_y) next_y_hollow = point.next_point_y->hollow;
+                    bool prev_z_hollow = true;
+                    if (point.prev_point_z) prev_z_hollow = point.prev_point_z->hollow;
+                    bool next_z_hollow = true;
+                    if (point.next_point_z) next_z_hollow = point.next_point_z->hollow;
+                    if (prev_x_hollow) vertex_count += 4;
+                    if (next_x_hollow) vertex_count += 4;
+                    if (prev_y_hollow) vertex_count += 4;
+                    if (next_y_hollow) vertex_count += 4;
+                    if (prev_z_hollow) vertex_count += 4;
+                    if (next_z_hollow) vertex_count += 4;
+                }
+            }
+        }
+
+        result->points.reserve(vertex_count);
+        for (auto point_list_it = cubes.points.begin(); point_list_it != cubes.points.end(); ++point_list_it)
+        {
+            auto& point_list = *point_list_it;
+            for (auto point_it = point_list.begin(); point_it != point_list.end();  ++point_it)
+            {
+                auto& point = *point_it;
+                if (point.isCube() && !point.hollow)
+                {
+                    bool prev_x_hollow = true;
+                    if (point.prev_point_x) prev_x_hollow = point.prev_point_x->hollow;
+                    bool next_x_hollow = true;
+                    if (point.next_point_x) next_x_hollow = point.next_point_x->hollow;
+                    bool prev_y_hollow = true;
+                    if (point.prev_point_y) prev_y_hollow = point.prev_point_y->hollow;
+                    bool next_y_hollow = true;
+                    if (point.next_point_y) next_y_hollow = point.next_point_y->hollow;
+                    bool prev_z_hollow = true;
+                    if (point.prev_point_z) prev_z_hollow = point.prev_point_z->hollow;
+                    bool next_z_hollow = true;
+                    if (point.next_point_z) next_z_hollow = point.next_point_z->hollow;
+                    if (prev_x_hollow)
+                    {
+                        result->points.push_back(toFloat(point.end_cube_y->point));
+                        result->points.push_back(toFloat(point.point));
+                        result->points.push_back(toFloat(point.end_cube_z->point));
+
+                        result->points.push_back(toFloat(point.end_cube_yz->point));
+                        result->points.push_back(toFloat(point.end_cube_y->point));
+                        result->points.push_back(toFloat(point.end_cube_z->point));
+                    }
+                    if (next_x_hollow)
+                    {
+                        result->points.push_back(toFloat(point.end_cube_x->point));
+                        result->points.push_back(toFloat(point.end_cube_xy->point));
+                        result->points.push_back(toFloat(point.end_cube_xz->point));
+
+                        result->points.push_back(toFloat(point.end_cube_xz->point));
+                        result->points.push_back(toFloat(point.end_cube_xy->point));
+                        result->points.push_back(toFloat(point.end_cube_xyz->point));
+                    }
+                    if (prev_y_hollow)
+                    {
+                        result->points.push_back(toFloat(point.point));
+                        result->points.push_back(toFloat(point.end_cube_x->point));
+                        result->points.push_back(toFloat(point.end_cube_xz->point));
+
+                        result->points.push_back(toFloat(point.point));
+                        result->points.push_back(toFloat(point.end_cube_xz->point));
+                        result->points.push_back(toFloat(point.end_cube_z->point));
+                    }
+                    if (next_y_hollow)
+                    {
+                        result->points.push_back(toFloat(point.end_cube_xy->point));
+                        result->points.push_back(toFloat(point.end_cube_y->point));
+                        result->points.push_back(toFloat(point.end_cube_yz->point));
+
+                        result->points.push_back(toFloat(point.end_cube_xy->point));
+                        result->points.push_back(toFloat(point.end_cube_yz->point));
+                        result->points.push_back(toFloat(point.end_cube_xyz->point));
+                    }
+                    if (prev_z_hollow)
+                    {
+                        result->points.push_back(toFloat(point.end_cube_y->point));
+                        result->points.push_back(toFloat(point.end_cube_xy->point));
+                        result->points.push_back(toFloat(point.end_cube_x->point));
+
+                        result->points.push_back(toFloat(point.point));
+                        result->points.push_back(toFloat(point.end_cube_y->point));
+                        result->points.push_back(toFloat(point.end_cube_x->point));
+                    }
+                    if (next_z_hollow)
+                    {
+                        result->points.push_back(toFloat(point.end_cube_z->point));
+                        result->points.push_back(toFloat(point.end_cube_xz->point));
+                        result->points.push_back(toFloat(point.end_cube_xyz->point));
+
+                        result->points.push_back(toFloat(point.end_cube_z->point));
+                        result->points.push_back(toFloat(point.end_cube_xyz->point));
+                        result->points.push_back(toFloat(point.end_cube_yz->point));
                     }
                 }
             }
         }
+
+        return result;
     }
 
     ModelBuilder::ModelBuilder(const Gkm::Solid::ISolid::Ptr& solid_) : solid(solid_)
@@ -287,12 +591,59 @@ namespace
 
     Gkm::Solid::Model::Ptr ModelBuilder::build()
     {
-        Gkm::Solid::Model::Ptr result = std::make_shared<Gkm::Solid::Model>();
         Eigen::AlignedBox3d bounding_box = solid->bbox();
+        Eigen::Vector3d min = bounding_box.min();
+        Eigen::Vector3d max = bounding_box.max();
+
         Point* x0_y0_z0 = cubes.AllocatePoint();
-        x0_y0_z0->point = bounding_box.min();
+        Point* x0_y1_z0 = cubes.AllocatePoint();
+        Point* x1_y0_z0 = cubes.AllocatePoint();
+        Point* x1_y1_z0 = cubes.AllocatePoint();
+        Point* x0_y0_z1 = cubes.AllocatePoint();
+        Point* x0_y1_z1 = cubes.AllocatePoint();
+        Point* x1_y0_z1 = cubes.AllocatePoint();
+        Point* x1_y1_z1 = cubes.AllocatePoint();
+
+        x0_y0_z0->point = min;
+        x0_y1_z0->point = min;
+        x0_y1_z0->point.y() = max.y();
+        x1_y0_z0->point = min;
+        x1_y0_z0->point.x() = max.x();
+        x1_y1_z0->point = max;
+        x1_y1_z0->point.z() = min.z();
+        x0_y0_z1->point = min;
+        x0_y0_z1->point.z() = max.z();
+        x0_y1_z1->point = max;
+        x0_y1_z1->point.x() = min.x();
+        x1_y0_z1->point = max;
+        x1_y0_z1->point.y() = min.y();
+        x1_y1_z1->point = max;
+
+        x0_y0_z0->addNextX(x1_y0_z0);
+        x0_y1_z0->addNextX(x1_y1_z0);
+        x0_y0_z1->addNextX(x1_y0_z1);
+        x0_y1_z1->addNextX(x1_y1_z1);
+
+        x0_y0_z0->addNextY(x0_y1_z0);
+        x1_y0_z0->addNextY(x1_y1_z0);
+        x0_y0_z1->addNextY(x0_y1_z1);
+        x1_y0_z1->addNextY(x1_y1_z1);
+
+        x0_y0_z0->addNextZ(x0_y0_z1);
+        x1_y0_z0->addNextZ(x1_y0_z1);
+        x0_y1_z0->addNextZ(x0_y1_z1);
+        x1_y1_z0->addNextZ(x1_y1_z1);
+
+        x0_y0_z0->end_cube_x = x1_y0_z0;
+        x0_y0_z0->end_cube_y = x0_y1_z0;
+        x0_y0_z0->end_cube_z = x0_y0_z1;
+        x0_y0_z0->end_cube_xy = x1_y1_z0;
+        x0_y0_z0->end_cube_xz = x1_y0_z1;
+        x0_y0_z0->end_cube_yz = x0_y1_z1;
+        x0_y0_z0->end_cube_xyz = x1_y1_z1;
+
         checkAndSplitCubes();
-        return result;
+        return buildModel();
     }
 }
 

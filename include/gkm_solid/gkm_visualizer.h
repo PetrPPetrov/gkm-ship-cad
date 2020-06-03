@@ -17,7 +17,6 @@ namespace Gkm
             typedef std::shared_ptr<Model> Ptr;
 
             std::vector<Eigen::Vector3f> points;
-            std::vector<Eigen::Vector3i> triangles;
         };
 
         Model::Ptr buildModel(const ISolid::Ptr& solid);
