@@ -487,12 +487,12 @@ namespace
                     if (point.prev_point_z) prev_z_hollow = point.prev_point_z->hollow;
                     bool next_z_hollow = true;
                     if (point.next_point_z) next_z_hollow = point.next_point_z->hollow;
-                    if (prev_x_hollow) vertex_count += 4;
-                    if (next_x_hollow) vertex_count += 4;
-                    if (prev_y_hollow) vertex_count += 4;
-                    if (next_y_hollow) vertex_count += 4;
-                    if (prev_z_hollow) vertex_count += 4;
-                    if (next_z_hollow) vertex_count += 4;
+                    if (prev_x_hollow) vertex_count += 6;
+                    if (next_x_hollow) vertex_count += 6;
+                    if (prev_y_hollow) vertex_count += 6;
+                    if (next_y_hollow) vertex_count += 6;
+                    if (prev_z_hollow) vertex_count += 6;
+                    if (next_z_hollow) vertex_count += 6;
                 }
             }
         }
